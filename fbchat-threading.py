@@ -2,37 +2,38 @@
 
 from fbchat import Client
 from fbchat.models import *
-from time import sleep
 import threading
 
-email = "<email>"
-pw = "<password>"
+# Subclass fbchat.Client and override required methods
+class PrintMessage(Client):
+
+    def onMessage(self, author_id, message_object, thread_id, thread_type, **kwargs):
+        self.markAsDelivered(thread_id, message_object.uid)
+        self.markAsRead(thread_id)
+
+        print("\nIncoming message: {}".format(message_object.text))
+
+    # Creating some feedback on login since we will disable INFO logging
+    def onLoggedIn(self, email=None):
+        print("Login of {} successful.".format(email))
+
+
+# Logging in and setting logging level to WARNING to avoid some unessential output
+client = PrintMessage("<email>", "<pw>", logging_level=30)
 
 
 def send():
-    client = Client(email, pw)
-
-    sleep(2)    # We sleep here just to avoid the "Login successful" message interfering with our input
-
     while True:
         payload = input('Message: ')
         if payload:
             client.send(Message(text=payload), thread_id=client.uid, thread_type=ThreadType.USER)
 
 def receive():
-    client2 = PrintMessage(email, pw)     # We have to create a dedicated Client for listening,
-    client2.listen()                      # while still being able to send messages
+    while True:
+        client.doOneListen()
 
 
-class PrintMessage(Client):
-    def onMessage(self, author_id, message_object, thread_id, thread_type, **kwargs):
-        self.markAsDelivered(thread_id, message_object.uid)
-        self.markAsRead(thread_id)
-
-        print("Incoming message: " + message_object.text)
-
-
-# Creating and starting separate threads for handling receiving and sending messages
+# Creating and starting separate threads for handling the receiving and sending of messages
 t1 = threading.Thread(target=receive)
 t2 = threading.Thread(target=send)
 t1.start()
